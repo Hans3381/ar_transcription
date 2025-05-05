@@ -2,106 +2,87 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Real-Time AR Caption</title>
+  <title>Web AR Subtitle</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-core.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
+
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
+    body { margin: 0; overflow: hidden; }
+    #loading {
+      position: absolute;
+      width: 100%;
+      height: 100%;
       background: black;
-    }
-    video {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      z-index: 1;
-    }
-    .caption {
-      position: absolute;
-      color: #00FF00;
-      background-color: rgba(0, 0, 0, 0.7);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 1.5rem;
-      font-weight: bold;
-      z-index: 2;
-      transform: translate(-50%, -100%);
-      pointer-events: none;
-      white-space: nowrap;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      z-index: 10;
     }
   </style>
 </head>
+
 <body>
+  <div id="loading">Loading...</div>
 
-<video id="video" autoplay muted playsinline></video>
-<div id="caption" class="caption">Menunggu suara...</div>
+  <a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;" 
+           embedded 
+           color-space="sRGB" 
+           renderer="precision: mediump; antialias: true" 
+           vr-mode-ui="enabled: false" 
+           device-orientation-permission-ui="enabled: true">
 
-<script type="module">
-  import { FaceDetector } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3';
+    <a-assets></a-assets>
 
-  const video = document.getElementById('video');
-  const caption = document.getElementById('caption');
+    <a-entity mindar-face-target="anchorIndex: 0">
+      <!-- Subtitle Bubble -->
+      <a-plane id="subtitle-bubble" color="#FFF" width="1.5" height="0.4" position="0 1 0" material="opacity: 1">
+        <a-text id="subtitle-text" value="Mendengarkan..." align="center" color="#000" width="2"></a-text>
+      </a-plane>
+    </a-entity>
 
-  // Aktifkan kamera
-  const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  video.srcObject = stream;
+    <a-camera active="true" position="0 0 0"></a-camera>
+  </a-scene>
 
-  // Buat face detector
-  const face = await FaceDetector.createFromOptions({
-    baseOptions: { modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/face_landmarker.task' },
-    runningMode: 'VIDEO',
-    numFaces: 1,
-    outputFaceBlendshapes: false,
-    outputFacialTransformationMatrixes: false,
-  });
+  <script>
+    // Loading screen hide
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      document.getElementById('loading').style.display = 'none';
+    });
 
-  // Deteksi wajah terus menerus
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+    // --- Speech Recognition ---
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-  async function detect() {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'id-ID'; // Bahasa Indonesia
 
-    const detections = await face.detect(canvas);
-    if (detections.detections.length > 0) {
-      const box = detections.detections[0].boundingBox;
-      const centerX = box.originX + box.width / 2;
-      const topY = box.originY;
+    const subtitleText = document.getElementById('subtitle-text');
 
-      // Geser teks ke posisi wajah (responsif ke layar)
-      const screenX = (centerX / video.videoWidth) * window.innerWidth;
-      const screenY = (topY / video.videoHeight) * window.innerHeight;
-      caption.style.left = `${screenX}px`;
-      caption.style.top = `${screenY}px`;
-    }
-    requestAnimationFrame(detect);
-  }
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      subtitleText.setAttribute('value', transcript);
+    };
 
-  video.onloadedmetadata = () => detect();
+    recognition.onerror = (event) => {
+      console.error('Speech Recognition Error: ', event.error);
+    };
 
-  // Web Speech API - real-time transkripsi
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'id-ID';
-  recognition.continuous = true;
-  recognition.interimResults = true;
+    recognition.onend = () => {
+      recognition.start(); // Restart if ends
+    };
 
-  recognition.onresult = (event) => {
-    let hasil = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      hasil += event.results[i][0].transcript;
-    }
-    caption.textContent = hasil || 'Menunggu suara...';
-  };
-
-  recognition.onerror = (e) => {
-    caption.textContent = 'Error: ' + e.error;
-  };
-
-  recognition.start();
-</script>
+    recognition.start();
+  </script>
 
 </body>
 </html>
