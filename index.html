@@ -1,359 +1,243 @@
-<!<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplikasi Speech & Text Interaktif</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin: 0;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            width: 100%;
-            max-width: 700px;
-        }
-        h1, h2 {
-            color: #333;
-            text-align: center;
-        }
-        #videoContainer {
-            position: relative; /* Penting untuk positioning speech bubble */
-            width: 100%;
-            max-width: 640px; /* Batasi lebar video */
-            margin: 0 auto 20px auto; /* Pusatkan dan beri margin bawah */
-            border: 1px solid #ccc;
-        }
-        #videoElement {
-            display: block; /* Hilangkan spasi ekstra di bawah video */
-            width: 100%;
-            height: auto; /* Jaga aspek rasio */
-            background-color: #000; /* Latar belakang jika kamera belum aktif */
-        }
-        #speechBubble {
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(255, 255, 255, 0.9);
-            border: 2px solid black;
-            border-radius: 15px;
-            padding: 10px 15px;
-            min-width: 50px;
-            max-width: 80%;
-            text-align: center;
-            font-size: 1.1em;
-            visibility: hidden; /* Sembunyikan awalnya */
-            z-index: 10;
-            /* Efek gelembung komik sederhana */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        #speechBubble::after { /* Ekor gelembung komik */
-            content: "";
-            position: absolute;
-            bottom: -10px; /* Atur posisi ekor */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-top: 10px solid black; /* Warna sama dengan border bubble */
-        }
-        .controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px; /* Jarak antar elemen kontrol */
-        }
-        button {
-            padding: 10px 15px;
-            font-size: 1em;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: background-color 0.3s ease;
-        }
-        button:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
-        button:hover:not(:disabled) {
-            background-color: #0056b3;
-        }
-        textarea {
-            width: 90%;
-            max-width: 500px;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            font-size: 1em;
-        }
-        #sttStatus, #ttsStatus {
-            margin-top: 10px;
-            font-style: italic;
-            color: #555;
-        }
-        #finalTranscript {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #e9e9e9;
-            border-radius: 5px;
-            min-height: 50px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Web AR Subtitle & TTS</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    #loading {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: black;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      z-index: 1000; /* Pastikan loading di atas segalanya */
+    }
+    .tts-controls {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px;
+      background-color: rgba(0,0,0,0.7);
+      border-radius: 10px;
+      display: flex;
+      gap: 10px;
+      z-index: 100; /* Pastikan kontrol TTS di atas scene AR */
+    }
+    .tts-controls input[type="text"] {
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      min-width: 200px;
+    }
+    .tts-controls button {
+      padding: 8px 15px;
+      border-radius: 5px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    .tts-controls button:hover {
+      background-color: #45a049;
+    }
+  </style>
 </head>
+
 <body>
-    <h1>Aplikasi Interaktif Suara & Teks</h1>
+  <div id="loading">Loading...</div>
 
-    <div class="container">
-        <h2>Kamera & Speech-to-Text</h2>
-        <div id="videoContainer">
-            <video id="videoElement" width="640" height="480" autoplay muted playsinline></video>
-            <div id="speechBubble"></div>
-        </div>
-        <div class="controls">
-            <button id="startCameraButton">Nyalakan Kamera & Mikrofon</button>
-            <button id="startSttButton" disabled>Mulai Deteksi Suara</button>
-            <button id="stopSttButton" disabled>Hentikan Deteksi Suara</button>
-        </div>
-        <div id="sttStatus">Status: Kamera & Mikrofon belum aktif.</div>
-        <p><strong>Teks Terdeteksi (Final):</strong></p>
-        <div id="finalTranscript" aria-live="polite"></div>
-    </div>
+  <div class="tts-controls">
+    <input type="text" id="tts-input" placeholder="Ketik teks di sini...">
+    <button id="speak-button">Ucapkan</button>
+  </div>
 
-    <div class="container">
-        <h2>Text-to-Speech</h2>
-        <textarea id="ttsInput" rows="4" placeholder="Ketik teks yang ingin diucapkan di sini..."></textarea>
-        <div class="controls">
-            <button id="speakButton">Ucapkan Teks</button>
-            <label for="voiceSelect">Pilih Suara:</label>
-            <select id="voiceSelect"></select>
-        </div>
-        <div id="ttsStatus"></div>
-    </div>
+  <a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;"
+           embedded
+           color-space="sRGB"
+           renderer="antialias: true; precision: mediump; physicallyCorrectLights: true;"
+           vr-mode-ui="enabled: false"
+           device-orientation-permission-ui="enabled: false">
 
-    <script>
-        const videoElement = document.getElementById('videoElement');
-        const speechBubble = document.getElementById('speechBubble');
-        const startCameraButton = document.getElementById('startCameraButton');
-        const startSttButton = document.getElementById('startSttButton');
-        const stopSttButton = document.getElementById('stopSttButton');
-        const sttStatus = document.getElementById('sttStatus');
-        const finalTranscriptDisplay = document.getElementById('finalTranscript');
+    <a-assets>
+        </a-assets>
 
-        const ttsInput = document.getElementById('ttsInput');
-        const speakButton = document.getElementById('speakButton');
-        const voiceSelect = document.getElementById('voiceSelect');
-        const ttsStatus = document.getElementById('ttsStatus');
+    <a-entity mindar-face-target="anchorIndex: 0">
+      <a-entity id="speech-bubble-group" position="0 0.6 0"> <a-plane id="bubble-background"
+                 color="#FFFFFF"
+                 opacity="0.9"
+                 width="0.8"
+                 height="0.3"
+                 position="0 0 -0.01"> </a-plane>
 
-        let recognition;
-        let synth = window.speechSynthesis;
-        let voices = [];
-        let mediaStream; // Untuk menyimpan stream dari kamera & mic
+        <a-triangle color="#FFFFFF" opacity="0.9"
+                    vertex-a="0 -0.15 0"   метров­
+                    vertex-b="-0.1 -0.25 0"
+                    vertex-c="0.1 -0.25 0"
+                    position="0 -0.05 -0.01"> </a-triangle>
 
-        // --- Inisialisasi Umum ---
-        function initialize() {
-            setupCamera();
-            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-                setupSpeechRecognition();
-            } else {
-                sttStatus.textContent = "Browser Anda tidak mendukung Web Speech API untuk Speech-to-Text.";
-                startSttButton.disabled = true;
-            }
+        <a-text id="subtitle-text"
+                value="Mendengarkan..."
+                align="center"
+                color="#000000"
+                width="0.75"  /* Lebar teks sedikit lebih kecil dari bubble */
+                wrap-count="25" /* Jumlah karakter per baris sebelum wrap */
+                position="0 0 0">
+        </a-text>
+      </a-entity>
+    </a-entity>
 
-            if (synth) {
-                setupTextToSpeech();
-            } else {
-                ttsStatus.textContent = "Browser Anda tidak mendukung Web Speech API untuk Text-to-Speech.";
-                speakButton.disabled = true;
-                voiceSelect.disabled = true;
-            }
+    <a-camera active="true" position="0 0 0"></a-camera>
+  </a-scene>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const sceneEl = document.querySelector('a-scene');
+      const loadingEl = document.getElementById('loading');
+      const subtitleTextEl = document.getElementById('subtitle-text');
+      const bubbleBgEl = document.getElementById('bubble-background');
+
+      // Sembunyikan loading screen setelah scene dimuat
+      sceneEl.addEventListener('loaded', () => {
+        if (loadingEl) {
+          loadingEl.style.display = 'none';
         }
+      });
 
-        // --- Kamera ---
-        function setupCamera() {
-            startCameraButton.onclick = async () => {
-                try {
-                    sttStatus.textContent = "Meminta izin kamera dan mikrofon...";
-                    mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    videoElement.srcObject = mediaStream;
-                    videoElement.onloadedmetadata = () => {
-                        videoElement.play();
-                        sttStatus.textContent = "Kamera & Mikrofon aktif. Siap untuk deteksi suara.";
-                        startCameraButton.disabled = true;
-                        startSttButton.disabled = false;
-                    };
-                } catch (err) {
-                    console.error("Error mengakses kamera/mikrofon:", err);
-                    sttStatus.textContent = `Error: ${err.message}. Pastikan izin diberikan.`;
-                    alert("Tidak bisa mengakses kamera/mikrofon. Periksa izin di browser Anda.");
-                }
-            };
-        }
+      // --- Speech Recognition (Speech-to-Text) ---
+      if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'id-ID'; // Bahasa Indonesia
 
-        // --- Speech-to-Text ---
-        function setupSpeechRecognition() {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.continuous = true; // Terus mendengarkan hingga dihentikan manual
-            recognition.lang = 'id-ID';    // Bahasa Indonesia
-            recognition.interimResults = true; // Tampilkan hasil sementara
+        recognition.onresult = (event) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          subtitleTextEl.setAttribute('value', transcript);
 
-            recognition.onstart = () => {
-                sttStatus.textContent = "Mendeteksi suara...";
-                startSttButton.disabled = true;
-                stopSttButton.disabled = false;
-                speechBubble.textContent = "Mendengarkan...";
-                speechBubble.style.visibility = 'visible';
-            };
+          // Sesuaikan ukuran bubble dengan teks (opsional, bisa kompleks)
+          // Untuk saat ini, kita pakai ukuran tetap, tapi idealnya disesuaikan
+          // Contoh sederhana: perpanjang bubble jika teks panjang
+          // const textWidth = subtitleTextEl.getAttribute('geometry').width;
+          // const textHeight = subtitleTextEl.getAttribute('geometry').height;
+          // if (transcript.length > 20) {
+          //   bubbleBgEl.setAttribute('width', 1);
+          //   subtitleTextEl.setAttribute('width', 0.95);
+          // } else {
+          //   bubbleBgEl.setAttribute('width', 0.8);
+          //    subtitleTextEl.setAttribute('width', 0.75);
+          // }
+        };
 
-            recognition.onresult = (event) => {
-                let interimTranscript = '';
-                let finalTranscript = '';
+        recognition.onerror = (event) => {
+          console.error('Speech Recognition Error: ', event.error);
+          subtitleTextEl.setAttribute('value', 'Error: ' + event.error);
+        };
 
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
-                }
+        recognition.onend = () => {
+          console.log('Speech recognition service disconnected, restarting...');
+          recognition.start(); // Restart jika koneksi terputus
+        };
 
-                // Tampilkan di gelembung (bisa interim)
-                const currentBubbleText = finalTranscript || interimTranscript;
-                speechBubble.textContent = currentBubbleText.trim() || "...";
-                if (currentBubbleText.trim()) {
-                    speechBubble.style.visibility = 'visible';
-                }
-
-
-                // Tampilkan di area teks permanen (hanya final)
-                if (finalTranscript.trim()) {
-                    finalTranscriptDisplay.textContent += finalTranscript; // Append ke teks sebelumnya
-                }
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Error Speech Recognition:", event.error);
-                sttStatus.textContent = `Error deteksi suara: ${event.error}`;
-                speechBubble.textContent = 'Error!';
-                speechBubble.style.visibility = 'visible';
-                stopSttButton.click(); // Otomatis hentikan jika ada error
-            };
-
-            recognition.onend = () => {
-                if (startSttButton.disabled) { // Jika tidak dihentikan manual, mungkin berhenti sendiri
-                     // Bisa dipertimbangkan untuk restart otomatis jika bukan karena stopSttButton
-                }
-                sttStatus.textContent = "Deteksi suara dihentikan.";
-                startSttButton.disabled = !mediaStream; // Hanya enable jika kamera aktif
-                stopSttButton.disabled = true;
-                // Jangan sembunyikan bubble jika ada teks terakhir
-                if (!speechBubble.textContent.trim() || speechBubble.textContent === "Mendengarkan..." || speechBubble.textContent === "Error!") {
-                    speechBubble.style.visibility = 'hidden';
-                }
-            };
-
-            startSttButton.onclick = () => {
-                if (!mediaStream) {
-                    alert("Nyalakan kamera dan mikrofon terlebih dahulu!");
-                    return;
-                }
-                try {
-                    finalTranscriptDisplay.textContent = ""; // Bersihkan transkrip sebelumnya
+        // Mulai speech recognition setelah AR siap (opsional, bisa langsung start)
+        sceneEl.addEventListener('mindar-face-ready', () => {
+          console.log("MindAR Face Ready, starting speech recognition.");
+          try {
+            recognition.start();
+          } catch(e) {
+            console.error("Error starting recognition on mindar-face-ready:", e);
+            subtitleTextEl.setAttribute('value', 'Gagal memulai mic');
+          }
+        });
+         // Fallback jika event mindar-face-ready tidak terpicu atau untuk browser desktop
+        if (!sceneEl.hasLoaded) { // Jika scene belum dimuat, start recognition setelah loaded
+            sceneEl.addEventListener('loaded', () => {
+                 try {
                     recognition.start();
-                } catch (e) {
-                    console.error("Gagal memulai recognition: ", e);
-                    sttStatus.textContent = "Gagal memulai deteksi. Mungkin sudah berjalan atau ada error konfigurasi.";
-                }
-            };
-
-            stopSttButton.onclick = () => {
-                recognition.stop();
-            };
-        }
-
-        // --- Text-to-Speech ---
-        function populateVoiceList() {
-            voices = synth.getVoices().filter(voice => voice.lang.startsWith('id') || voice.lang.startsWith('en')); // Prioritaskan Indonesia & Inggris
-            if (voices.length === 0) voices = synth.getVoices(); // fallback ke semua suara jika tidak ada id/en
-
-            voiceSelect.innerHTML = ''; // Bersihkan opsi lama
-            voices.forEach(voice => {
-                let listItem = document.createElement('option');
-                listItem.textContent = `${voice.name} (${voice.lang})`;
-                listItem.setAttribute('data-lang', voice.lang);
-                listItem.setAttribute('data-name', voice.name);
-                voiceSelect.appendChild(listItem);
+                  } catch(e) {
+                    console.error("Error starting recognition on scene loaded:", e);
+                    subtitleTextEl.setAttribute('value', 'Gagal memulai mic');
+                  }
             });
-             // Pilih suara default (misalnya, suara Indonesia pertama jika ada)
-            const defaultIndonesianVoice = voices.find(voice => voice.lang === 'id-ID');
-            if (defaultIndonesianVoice) {
-                voiceSelect.value = `${defaultIndonesianVoice.name} (${defaultIndonesianVoice.lang})`;
-            }
+        } else { // Jika scene sudah dimuat (mis. saat development dengan refresh cepat)
+             try {
+                recognition.start();
+              } catch(e) {
+                console.error("Error starting recognition (already loaded):", e);
+                subtitleTextEl.setAttribute('value', 'Gagal memulai mic');
+              }
         }
 
-        function setupTextToSpeech() {
-            populateVoiceList();
-            if (synth.onvoiceschanged !== undefined) {
-                synth.onvoiceschanged = populateVoiceList;
-            }
 
-            speakButton.onclick = () => {
-                if (synth.speaking) {
-                    console.warn('SpeechSynthesis.speaking');
-                    ttsStatus.textContent = "Sedang berbicara, harap tunggu.";
-                    return;
-                }
-                const text = ttsInput.value.trim();
-                if (text !== '') {
-                    const utterThis = new SpeechSynthesisUtterance(text);
-                    utterThis.onstart = () => {
-                        ttsStatus.textContent = "Sedang berbicara...";
-                        speakButton.disabled = true;
-                    }
-                    utterThis.onend = () => {
-                        ttsStatus.textContent = "Selesai berbicara.";
-                        speakButton.disabled = false;
-                    };
-                    utterThis.onerror = (event) => {
-                        console.error('SpeechSynthesisUtterance.onerror', event);
-                        ttsStatus.textContent = `Error: ${event.error}`;
-                        speakButton.disabled = false;
-                    };
-                    const selectedOption = voiceSelect.selectedOptions[0].getAttribute('data-name');
-                    const selectedVoice = voices.find(voice => voice.name === selectedOption);
-                    if (selectedVoice) {
-                        utterThis.voice = selectedVoice;
-                    } else if (voices.length > 0) { // Fallback ke suara pertama jika pilihan tidak valid
-                        utterThis.voice = voices[0];
-                    }
-                    // Anda bisa mengatur pitch dan rate di sini jika diperlukan
-                    // utterThis.pitch = 1;
-                    // utterThis.rate = 1;
-                    synth.speak(utterThis);
-                } else {
-                    ttsStatus.textContent = "Silakan ketik teks terlebih dahulu.";
-                }
-            };
+      } else {
+        console.error('Speech Recognition not supported in this browser.');
+        subtitleTextEl.setAttribute('value', 'Speech Recognition tidak didukung.');
+      }
+
+      // --- Text-to-Speech (TTS) ---
+      const ttsInput = document.getElementById('tts-input');
+      const speakButton = document.getElementById('speak-button');
+      let voices = [];
+
+      function populateVoiceList() {
+        voices = window.speechSynthesis.getVoices();
+        // Anda bisa uncomment ini untuk melihat daftar suara yang tersedia di konsol
+        // console.log("Available voices:", voices);
+      }
+
+      populateVoiceList();
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+      }
+
+      speakButton.addEventListener('click', () => {
+        const textToSpeak = ttsInput.value.trim();
+        if (textToSpeak === '') {
+          alert('Masukkan teks terlebih dahulu!');
+          return;
         }
 
-        // Panggil fungsi inisialisasi utama
-        initialize();
+        if (window.speechSynthesis.speaking) {
+            console.log('SpeechSynthesis.speaking');
+            window.speechSynthesis.cancel(); // Batalkan ucapan sebelumnya jika ada
+        }
 
-    </script>
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'id-ID';
+
+        // Coba cari suara Bahasa Indonesia
+        const indonesianVoice = voices.find(voice => voice.lang === 'id-ID');
+        if (indonesianVoice) {
+          utterance.voice = indonesianVoice;
+        } else {
+          console.warn('Suara Bahasa Indonesia tidak ditemukan, menggunakan default.');
+        }
+
+        utterance.onerror = (event) => {
+          console.error('SpeechSynthesis Utterance Error:', event.error);
+          alert('Gagal mengucapkan teks: ' + event.error);
+        };
+
+        window.speechSynthesis.speak(utterance);
+      });
+    });
+  </script>
+
 </body>
 </html>
