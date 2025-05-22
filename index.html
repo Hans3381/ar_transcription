@@ -1,175 +1,86 @@
 <!DOCTYPE html>
-
 <html lang="id">
-
 <head>
+  <meta charset="UTF-8">
+  <title>Web AR Subtitle</title>
+  <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
 
-<meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-core.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
 
-<title>Web AR Subtitle</title>
-
-<script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
-
-
-
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-core.prod.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face.prod.js"></script>
-
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
-
-
-
-<style>
-
-body { margin: 0; overflow: hidden; }
-
-#loading {
-
-position: absolute;
-
-width: 100%;
-
-height: 100%;
-
-background: black;
-
-color: white;
-
-display: flex;
-
-align-items: center;
-
-justify-content: center;
-
-font-size: 20px;
-
-z-index: 10;
-
-}
-
-</style>
-
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #loading {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: black;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      z-index: 10;
+    }
+  </style>
 </head>
 
-
-
 <body>
+  <div id="loading">Loading...</div>
+
+  <a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;" 
+           embedded 
+           color-space="sRGB" 
+           renderer="precision: mediump; antialias: true" 
+           vr-mode-ui="enabled: false" 
+           device-orientation-permission-ui="enabled: true">
+
+    <a-assets></a-assets>
+
+    <a-entity mindar-face-target="anchorIndex: 0">
+      <!-- Subtitle Bubble -->
+      <a-text id="subtitle-text" value="Mendengarkan..." align="center" width="2" style="color: #fff; text-shadow: 2px 2px red;"></a-text>
+    </a-entity>
+
+    <a-camera active="true" position="0 0 0"></a-camera>
+  </a-scene>
+
+  <script>
+    // Loading screen hide
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      document.getElementById('loading').style.display = 'none';
+    });
+
+    // --- Speech Recognition ---
+    window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'id-ID'; // Bahasa Indonesia
+
+    const subtitleText = document.getElementById('subtitle-text');
+
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      subtitleText.setAttribute('value', transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error('Speech Recognition Error: ', event.error);
+    };
+
+    recognition.onend = () => {
+      recognition.start(); // Restart if ends
+    };
 
-<div id="loading">Loading...</div>
-
-
-
-<a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;"
-
-embedded
-
-color-space="sRGB"
-
-renderer="precision: mediump; antialias: true"
-
-vr-mode-ui="enabled: false"
-
-device-orientation-permission-ui="enabled: true">
-
-
-
-<a-assets></a-assets>
-
-
-
-<a-entity mindar-face-target="anchorIndex: 0">
-
-<!-- Subtitle Bubble -->
-
-<a-text id="subtitle-text" value="Mendengarkan..." align="center" width="2" style="color: #fff; text-shadow: 2px 2px red;"></a-text>
-
-</a-entity>
-
-
-
-<a-camera active="true" position="0 0 0"></a-camera>
-
-</a-scene>
-
-
-
-<script>
-
-// Loading screen hide
-
-document.querySelector('a-scene').addEventListener('loaded', () => {
-
-document.getElementById('loading').style.display = 'none';
-
-});
-
-
-
-// --- Speech Recognition ---
-
-window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-
-
-const recognition = new SpeechRecognition();
-
-recognition.continuous = true;
-
-recognition.interimResults = true;
-
-recognition.lang = 'id-ID'; // Bahasa Indonesia
-
-
-
-const subtitleText = document.getElementById('subtitle-text');
-
-
-
-recognition.onresult = (event) => {
-
-let transcript = '';
-
-for (let i = event.resultIndex; i < event.results.length; i++) {
-
-transcript += event.results[i][0].transcript;
-
-}
-
-subtitleText.setAttribute('value', transcript);
-
-};
-
-
-
-recognition.onerror = (event) => {
-
-console.error('Speech Recognition Error: ', event.error);
-
-};
-
-
-
-recognition.onend = () => {
-
-recognition.start(); // Restart if ends
-
-};
-
-
-
-recognition.start();
-
-</script>
-
-
-
-</body>
-
-</html>
     recognition.start();
   </script>
+
 </body>
 </html>
