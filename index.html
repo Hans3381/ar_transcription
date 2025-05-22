@@ -35,13 +35,13 @@
   <div id="loading">Loading...</div>
 
   <a-scene 
-    mindar-face="autoStart: true; filterMinCF: 0.01; filterBeta: 0.01;" 
+    id="ar-scene"
     embedded
     color-space="sRGB"
     renderer="precision: mediump; antialias: true"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: true">
-
+    
     <a-assets></a-assets>
 
     <a-entity mindar-face-target="anchorIndex: 0">
@@ -60,18 +60,18 @@
   </a-scene>
 
   <script>
-    // Loading screen hide
+    // Sembunyikan layar loading saat scene siap
     document.querySelector('a-scene').addEventListener('loaded', () => {
       document.getElementById('loading').style.display = 'none';
     });
 
-    // --- Speech Recognition ---
+    // Inisialisasi Speech Recognition
     window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'id-ID'; // Bahasa Indonesia
+    recognition.lang = 'id-ID';
 
     const subtitleText = document.getElementById('subtitle-text');
 
@@ -88,10 +88,25 @@
     };
 
     recognition.onend = () => {
-      recognition.start(); // Restart if ends
+      recognition.start();
     };
 
     recognition.start();
+
+    // Gunakan kamera belakang jika tersedia
+    async function selectRearCameraAndStart() {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      const rearCamera = videoDevices.find(device => device.label.toLowerCase().includes('back')) || videoDevices[0];
+
+      const scene = document.querySelector('a-scene');
+      scene.setAttribute('mindar-face', `autoStart: true; filterMinCF: 0.01; filterBeta: 0.01; deviceId: ${rearCamera.deviceId}`);
+    }
+
+    // Jalankan saat DOM siap
+    window.addEventListener('DOMContentLoaded', () => {
+      selectRearCameraAndStart();
+    });
   </script>
 </body>
 </html>
