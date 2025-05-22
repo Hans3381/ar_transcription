@@ -2,12 +2,14 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Web AR Subtitle dengan TTS & Bubble</title>
+  <title>Web AR Subtitle</title>
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-core.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
     #loading {
       position: absolute;
       width: 100%;
@@ -20,146 +22,105 @@
       font-size: 20px;
       z-index: 10;
     }
-    /* Styling untuk bubble bisa lebih disempurnakan di sini jika diperlukan */
-    .a-text { /* Ini adalah contoh, styling a-text lebih baik via atribut komponen */
-        /* text-shadow tidak didukung secara native oleh a-text, dihapus dari kode asli */
+    #tts-toggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 20;
+      padding: 10px 15px;
+      background-color: #ffffffcc;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 14px;
+      cursor: pointer;
     }
   </style>
 </head>
 
 <body>
-  <div id="loading">Memuat...</div>
+  <div id="loading">Loading...</div>
+  <button id="tts-toggle">Aktifkan Suara</button>
 
   <a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;"
            embedded
            color-space="sRGB"
-           renderer="antialias: true; precision: mediump;" vr-mode-ui="enabled: false"
+           renderer="precision: mediump; antialias: true"
+           vr-mode-ui="enabled: false"
            device-orientation-permission-ui="enabled: true">
 
-    <a-assets>
-      </a-assets>
+    <a-assets></a-assets>
 
     <a-entity mindar-face-target="anchorIndex: 0">
-      <a-plane id="subtitle-bubble-bg"
-               position="0 0.3 -0.02" width="2.2" height="0.7" color="#FFFFFF"
-               material="shader: flat; opacity: 0.85; transparent: true"
-               ></a-plane> <a-text id="subtitle-text"
-              value="Mendengarkan..."
-              align="center"   anchor="center"  baseline="center" wrap-count="28"  width="2"        position="0 0.3 0" color="#333333"  ></a-text>
+      <!-- Comic Bubble -->
+      <a-plane position="0 -0.5 0" width="2.2" height="0.6" color="#ffffff" opacity="0.9"
+               material="shader: flat" geometry="primitive: plane"
+               rounded="radius: 0.1">
+      </a-plane>
+
+      <a-text id="subtitle-text" value="Mendengarkan..." align="center"
+              width="2" color="black" position="0 -0.5 0.01"
+              wrap-count="30" baseline="center">
+      </a-text>
     </a-entity>
 
     <a-camera active="true" position="0 0 0"></a-camera>
   </a-scene>
 
   <script>
-    // Sembunyikan layar loading setelah scene dimuat
+    // Loading screen hide
     document.querySelector('a-scene').addEventListener('loaded', () => {
       document.getElementById('loading').style.display = 'none';
     });
 
-    // --- Inisialisasi Speech Recognition ---
+    // Speech recognition
     window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.continuous = true;    // Terus menerus mengenali, bahkan setelah jeda
-    recognition.interimResults = true; // Hasil sementara akan ditampilkan
-    recognition.lang = 'id-ID';       // Set bahasa ke Bahasa Indonesia
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'id-ID';
 
-    const subtitleTextElement = document.getElementById('subtitle-text');
+    const subtitleText = document.getElementById('subtitle-text');
+    let lastSpoken = '';
+    let isSpeechEnabled = false;
+
+    const toggleButton = document.getElementById('tts-toggle');
+    toggleButton.addEventListener('click', () => {
+      isSpeechEnabled = !isSpeechEnabled;
+      toggleButton.textContent = isSpeechEnabled ? 'Nonaktifkan Suara' : 'Aktifkan Suara';
+    });
 
     recognition.onresult = (event) => {
-      let currentFullTranscript = ""; // Untuk membangun transkrip lengkap yang akan ditampilkan
-
-      // Gabungkan semua hasil transkrip (termasuk interim) untuk tampilan
-      for (let i = 0; i < event.results.length; ++i) {
-        currentFullTranscript += event.results[i][0].transcript;
-      }
-      subtitleTextElement.setAttribute('value', currentFullTranscript.trim() || "Mendengarkan...");
-
-      // --- Logika Text-to-Speech (TTS) ---
-      let finalTranscriptSegmentForSpeech = '';
-      // Kumpulkan hanya bagian transkrip yang sudah final dari event saat ini untuk diucapkan
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscriptSegmentForSpeech += event.results[i][0].transcript;
-        }
+      let transcript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
       }
 
-      if (finalTranscriptSegmentForSpeech.trim().length > 0) {
-        speakText(finalTranscriptSegmentForSpeech.trim());
+      subtitleText.setAttribute('value', transcript);
+
+      const lastResult = event.results[event.results.length - 1];
+      if (lastResult.isFinal && transcript !== lastSpoken && isSpeechEnabled) {
+        speakText(transcript);
+        lastSpoken = transcript;
       }
     };
 
     recognition.onerror = (event) => {
-      console.error('Kesalahan Speech Recognition: ', event.error);
-      if (event.error === 'no-speech') {
-        subtitleTextElement.setAttribute('value', "Tidak ada suara terdeteksi. Coba lagi.");
-      } else if (event.error === 'audio-capture') {
-        subtitleTextElement.setAttribute('value', "Mikrofon tidak ditemukan/bermasalah.");
-      } else if (event.error === 'not-allowed') {
-        subtitleTextElement.setAttribute('value', "Akses mikrofon tidak diizinkan.");
-      }
+      console.error('Speech Recognition Error:', event.error);
     };
 
-    // Restart recognition jika berakhir (untuk continuous listening)
     recognition.onend = () => {
-      // Cek apakah ini berakhir karena error 'not-allowed' atau 'audio-capture' permanen
-      // Jika iya, mungkin tidak bijak untuk terus menerus restart.
-      // Untuk kasus umum, restart akan menjaga sesi tetap aktif.
       recognition.start();
     };
 
-    // --- Fungsi Text-to-Speech (TTS) ---
+    recognition.start();
+
     function speakText(text) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'id-ID'; // Pastikan bahasa TTS adalah Indonesia
-
-      // Coba dapatkan suara Bahasa Indonesia jika tersedia
-      const setVoiceAndSpeak = () => {
-        const voices = window.speechSynthesis.getVoices();
-        const indonesianVoice = voices.find(voice => voice.lang === 'id-ID' || voice.lang.startsWith('id-'));
-
-        if (indonesianVoice) {
-          utterance.voice = indonesianVoice;
-        } else {
-          console.warn("Suara Bahasa Indonesia untuk TTS tidak ditemukan, menggunakan suara default.");
-        }
-        window.speechSynthesis.speak(utterance);
-      };
-
-      // Daftar suara mungkin belum dimuat saat pertama kali. Gunakan onvoiceschanged.
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          setVoiceAndSpeak();
-          // Hapus listener setelah digunakan untuk menghindari pemanggilan ganda
-          window.speechSynthesis.onvoiceschanged = null;
-        };
-      } else {
-        setVoiceAndSpeak();
-      }
+      utterance.lang = 'id-ID';
+      utterance.pitch = 1;
+      utterance.rate = 1;
+      speechSynthesis.speak(utterance);
     }
-
-    // Mulai speech recognition
-    try {
-      recognition.start();
-    } catch (e) {
-      console.error("Gagal memulai speech recognition:", e);
-      subtitleTextElement.setAttribute('value', "Gagal memulai pengenalan suara.");
-    }
-
-    // --- Catatan tentang Sensitivitas Mikrofon ---
-    // Pengaturan `filterMinCF` (filterMinCF:0.01) dan `filterBeta` (filterBeta:0.01)
-    // pada `mindar-face` adalah untuk sensitivitas *pelacakan wajah (face tracking)*,
-    // bukan untuk sensitivitas input audio mikrofon.
-    //
-    // Untuk `SpeechRecognition API`:
-    // - `recognition.continuous = true;` membuat pengenalan terus berjalan.
-    // - `recognition.interimResults = true;` memberikan hasil sementara dengan cepat,
-    //   yang dapat memberikan persepsi responsivitas yang lebih tinggi.
-    //
-    // Kontrol sensitivitas gain mikrofon secara langsung biasanya tidak tersedia
-    // melalui Web Speech API. Ini lebih sering dikontrol oleh pengaturan sistem operasi
-    // atau browser pengguna. Pastikan mikrofon tidak di-mute dan level inputnya memadai
-    // di pengaturan sistem.
   </script>
 </body>
 </html>
