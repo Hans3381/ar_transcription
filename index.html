@@ -4,9 +4,10 @@
   <meta charset="UTF-8">
   <title>Web AR Subtitle & TTS (Kamera Belakang)</title>
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mind-ar-face-aframe.min.js"></script>
 
   <style>
+    /* ... CSS Anda tetap sama ... */
     body {
       margin: 0;
       overflow: hidden;
@@ -114,7 +115,7 @@
       let voices = [];
       let recognition;
 
-      console.log("DOMContentLoaded. Scene:", sceneEl, "Loading:", loadingEl, "Subtitle:", subtitleTextEl);
+      console.log("DOMContentLoaded. Scene:", sceneEl);
       if (!sceneEl) {
           console.error("A-Frame scene element not found!");
           if(loadingEl) loadingEl.innerHTML = "Error: Scene not found!";
@@ -145,7 +146,7 @@
               transcript += event.results[i][0].transcript;
             }
             if(subtitleTextEl) subtitleTextEl.setAttribute('value', transcript);
-            console.log("Transcript:", transcript);
+            // console.log("Transcript:", transcript); // Bisa di-uncomment untuk debug detail
           };
           recognition.onerror = (event) => {
             console.error('Speech Recognition Error:', event.error, event.message);
@@ -155,7 +156,7 @@
             console.log('Speech recognition service disconnected.');
             if (recognition && !recognition.manualStop) {
               try {
-                console.log('Attempting to restart speech recognition...');
+                // console.log('Attempting to restart speech recognition...'); // Bisa di-uncomment untuk debug detail
                 recognition.start();
               } catch(e) {
                 console.error("Error restarting recognition onend:", e);
@@ -171,7 +172,7 @@
               console.error("Error starting speech recognition:", e);
               if (subtitleTextEl) subtitleTextEl.setAttribute('value', 'Gagal memulai mic: ' + e.message);
             }
-          }, 2000); // Tambah sedikit delay lagi jika diperlukan
+          }, 2000);
         } else {
           console.error('Speech Recognition not supported.');
           if (subtitleTextEl) subtitleTextEl.setAttribute('value', 'Speech Rec tidak didukung.');
@@ -183,10 +184,17 @@
         if (loadingEl && loadingEl.style.display !== 'none') {
           loadingEl.style.display = 'none';
         }
-        if (subtitleTextEl) {
-          subtitleTextEl.setAttribute('value', `AR Error: ${event.detail.type || event.detail.name || 'Unknown'}. Cek console.`);
+        let errorMessage = 'AR Error. Cek console.';
+        if (event.detail && event.detail.error) {
+            errorMessage = `AR Error: ${event.detail.error.name || event.detail.error.message || 'Unknown'}. Cek console.`;
+        } else if (event.detail && event.detail.type) {
+            errorMessage = `AR Error: ${event.detail.type}. Cek console.`;
         }
-        alert(`Terjadi masalah AR: ${event.detail.type || event.detail.name || 'Unknown Error'}. Silakan cek console (F12) untuk detail dan coba muat ulang halaman. Pastikan izin kamera diberikan.`);
+        
+        if (subtitleTextEl) {
+          subtitleTextEl.setAttribute('value', errorMessage);
+        }
+        alert(errorMessage + " Pastikan izin kamera diberikan dan coba muat ulang halaman.");
       });
 
       sceneEl.addEventListener('mindar-face-ready', () => {
@@ -194,26 +202,9 @@
           if(subtitleTextEl) subtitleTextEl.setAttribute('value', 'AR Siap. Arahkan ke wajah.');
       });
       
-      // Listener untuk melihat apakah video dari MindAR mulai diputar
-      const videoElement = document.querySelector('video'); // MindAR biasanya membuat elemen video
-      if (videoElement) {
-        videoElement.addEventListener('playing', () => {
-            console.log("MindAR video source is playing.");
-        });
-        videoElement.addEventListener('error', (e) => {
-            console.error("MindAR video source error:", e);
-        });
-      } else {
-        // MindAR mungkin membuat video lebih lambat, atau menyembunyikannya dengan baik.
-        // Ini hanya upaya untuk mendapatkan log tambahan.
-        console.warn("MindAR video element not immediately found. It might be created later or hidden.");
-      }
-
-
       // --- Text-to-Speech (TTS) ---
       function populateVoiceList() {
         voices = window.speechSynthesis.getVoices();
-        // console.log("Available TTS voices:", voices);
       }
       populateVoiceList();
       if (speechSynthesis.onvoiceschanged !== undefined) {
