@@ -3,13 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <title>Web AR Subtitle</title>
+
+  <!-- A-Frame dan MindAR -->
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-core.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face.prod.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-face-aframe.prod.js"></script>
 
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
     #loading {
       position: absolute;
       width: 100%;
@@ -22,44 +28,31 @@
       font-size: 20px;
       z-index: 10;
     }
-    #tts-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 20;
-      padding: 10px 15px;
-      background-color: #ffffffcc;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      font-size: 14px;
-      cursor: pointer;
-    }
   </style>
 </head>
 
 <body>
   <div id="loading">Loading...</div>
-  <button id="tts-toggle">Aktifkan Suara</button>
 
-  <a-scene mindar-face="autoStart: true; filterMinCF:0.01; filterBeta:0.01;"
-           embedded
-           color-space="sRGB"
-           renderer="precision: mediump; antialias: true"
-           vr-mode-ui="enabled: false"
-           device-orientation-permission-ui="enabled: true">
+  <a-scene 
+    mindar-face="autoStart: true; filterMinCF: 0.01; filterBeta: 0.01;" 
+    embedded
+    color-space="sRGB"
+    renderer="precision: mediump; antialias: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: true">
 
     <a-assets></a-assets>
 
     <a-entity mindar-face-target="anchorIndex: 0">
-      <!-- Comic Bubble -->
-      <a-plane position="0 -0.5 0" width="2.2" height="0.6" color="#ffffff" opacity="0.9"
-               material="shader: flat" geometry="primitive: plane"
-               rounded="radius: 0.1">
-      </a-plane>
-
-      <a-text id="subtitle-text" value="Mendengarkan..." align="center"
-              width="2" color="black" position="0 -0.5 0.01"
-              wrap-count="30" baseline="center">
+      <!-- Subtitle Bubble -->
+      <a-text 
+        id="subtitle-text" 
+        value="Mendengarkan..." 
+        align="center" 
+        width="2"
+        color="#FFFFFF"
+        shader="standard">
       </a-text>
     </a-entity>
 
@@ -72,36 +65,22 @@
       document.getElementById('loading').style.display = 'none';
     });
 
-    // Speech recognition
+    // --- Speech Recognition ---
     window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'id-ID';
+    recognition.lang = 'id-ID'; // Bahasa Indonesia
 
     const subtitleText = document.getElementById('subtitle-text');
-    let lastSpoken = '';
-    let isSpeechEnabled = false;
-
-    const toggleButton = document.getElementById('tts-toggle');
-    toggleButton.addEventListener('click', () => {
-      isSpeechEnabled = !isSpeechEnabled;
-      toggleButton.textContent = isSpeechEnabled ? 'Nonaktifkan Suara' : 'Aktifkan Suara';
-    });
 
     recognition.onresult = (event) => {
       let transcript = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript;
       }
-
       subtitleText.setAttribute('value', transcript);
-
-      const lastResult = event.results[event.results.length - 1];
-      if (lastResult.isFinal && transcript !== lastSpoken && isSpeechEnabled) {
-        speakText(transcript);
-        lastSpoken = transcript;
-      }
     };
 
     recognition.onerror = (event) => {
@@ -109,18 +88,10 @@
     };
 
     recognition.onend = () => {
-      recognition.start();
+      recognition.start(); // Restart if ends
     };
 
     recognition.start();
-
-    function speakText(text) {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'id-ID';
-      utterance.pitch = 1;
-      utterance.rate = 1;
-      speechSynthesis.speak(utterance);
-    }
   </script>
 </body>
 </html>
